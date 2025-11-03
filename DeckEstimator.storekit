@@ -1,0 +1,29 @@
+{
+  "identifier" : "6F1B2A00-0000-4000-8000-000000000001",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "6.99",
+      "familyShareable" : false,
+      "internalID" : "DE_PRO_UNLOCK",
+      "localizations" : [
+        {
+          "description" : "Unlocks Stairs, Covered Deck, Full Project, and PDF export.",
+          "displayName" : "DeckEstimator Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.stephanieshaw.DeckEstimator.prounlock",
+      "referenceName" : "DeckEstimator Pro Unlock",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
