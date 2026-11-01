@@ -50,7 +50,7 @@ enum MaterialGrouping {
     ]
 
     static let coveredDeckCategories: [(title: String, needles: [String])] = [
-        ("Framing", ["Rafters", "Posts", "Beam", "Ridge Board"]),
+        ("Framing", ["Rafters", "Posts", "Post lumber", "Beam", "Ridge Board"]),
         ("Roofing", ["Roof Sheathing", "Shingles", "Metal Roofing"]),
         ("Trim", ["Hip Trim", "Valley Flashing"])
     ]

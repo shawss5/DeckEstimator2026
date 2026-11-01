@@ -8,13 +8,13 @@ struct FeetInchesRow: View {
     @Binding var inches: Double
 
     var body: some View {
-        HStack {
+        HStack(spacing: 6) {
             Text(label)
-            Spacer()
+            Spacer(minLength: 8)
             NumberField(value: feet).frame(width: 80)
-            Text("ft").foregroundStyle(.secondary)
+            Text("ft").foregroundStyle(.secondary).fixedSize()
             NumberField(value: inchPart).frame(width: 80)
-            Text("in").foregroundStyle(.secondary)
+            Text("in").foregroundStyle(.secondary).fixedSize()
         }
     }
 

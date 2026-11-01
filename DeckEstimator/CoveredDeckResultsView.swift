@@ -40,7 +40,7 @@ struct CoveredDeckResultsView: View {
         return needles.contains { name.contains($0.lowercased()) }
     }
 
-    private let framingNeedles = ["Rafters", "Posts", "Beam", "Ridge Board"]
+    private let framingNeedles = ["Rafters", "Posts", "Post lumber", "Beam", "Ridge Board"]
     private let roofingNeedles = ["Roof Sheathing", "Shingles", "Metal Roofing"]
     private let trimNeedles = ["Hip Trim", "Valley Flashing"]
 
@@ -58,7 +58,7 @@ struct CoveredDeckResultsView: View {
                 HStack {
                     Text(it.name)
                     Spacer()
-                    Text("\(fmt(it.qty)) \(it.unit)")
+                    Text("\(fmt(it.qty)) \(displayUnit(it))")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -85,7 +85,7 @@ struct CoveredDeckResultsView: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text(it.name).font(.subheadline).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 8)
-                            Text("\(fmt(it.qty)) \(it.unit)").font(.footnote).foregroundStyle(.secondary)
+                            Text("\(fmt(it.qty)) \(displayUnit(it))").font(.footnote).foregroundStyle(.secondary)
                         }
                         if let notes = it.notes, !notes.isEmpty {
                             Text(notes).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -100,8 +100,9 @@ struct CoveredDeckResultsView: View {
 
     /// Create a styled PDF from the grouped materials and return a file URL
     private func makeSummaryPDF() -> URL? {
-        let pageWidth: CGFloat = 612 // 8.5" at 72 dpi
-        let content = VStack(alignment: .leading, spacing: 10) {
+        // Lay the PDF out on 8½ × 11 pages (see PDFPaginator).
+        var blocks: [AnyView] = []
+        blocks.append(AnyView(
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -141,37 +142,13 @@ struct CoveredDeckResultsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
-            Divider()
-
-            pdfSection("Framing", framingItems)
-            pdfSection("Roofing", roofingItems)
-            pdfSection("Trim", trimItems)
-            pdfSection("Other", otherItems)
+        ))
+        blocks.append(AnyView(Divider()))
+        blocks.append(AnyView(RoofEndDrawing(input: input).padding(.vertical, 6)))
+        for (t, arr) in [("Framing", framingItems), ("Roofing", roofingItems), ("Trim", trimItems), ("Other", otherItems)] {
+            blocks += PDFPaginator.sectionBlocks(t, arr)
         }
-        .padding(24)
-        .frame(width: pageWidth, alignment: .leading)
-
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 1
-
-        var pdfData: Data?
-        renderer.render { size, render in
-            let pageRect = CGRect(origin: .zero, size: size)
-            let format = UIGraphicsPDFRendererFormat()
-            let pdfRenderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
-            pdfData = pdfRenderer.pdfData { ctx in
-                ctx.beginPage()
-                let cg = ctx.cgContext
-                cg.saveGState()
-                cg.setFillColor(UIColor.white.cgColor)
-                cg.fill(CGRect(origin: .zero, size: pageRect.size))
-                cg.translateBy(x: 0, y: pageRect.height)
-                cg.scaleBy(x: 1, y: -1)
-                render(cg)
-                cg.restoreGState()
-            }
-        }
-        guard let data = pdfData else { return nil }
+        let data = PDFPaginator.pdfData(blocks: blocks)
         let filename = "CoveredDeckEstimate-\(UUID().uuidString.prefix(8)).pdf"
         let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename, conformingTo: .pdf)
         do { try data.write(to: tmpURL); return tmpURL } catch { return nil }
@@ -214,9 +191,9 @@ struct CoveredDeckResultsView: View {
         for it in items {
             let qtyStr = fmt(it.qty)
             if let notes = it.notes, !notes.isEmpty {
-                lines.append("- \(it.name): \(qtyStr) \(it.unit) (\(notes))")
+                lines.append("- \(it.name): \(qtyStr) \(displayUnit(it)) (\(notes))")
             } else {
-                lines.append("- \(it.name): \(qtyStr) \(it.unit)")
+                lines.append("- \(it.name): \(qtyStr) \(displayUnit(it))")
             }
         }
         return lines.joined(separator: "\n")
@@ -241,6 +218,8 @@ struct CoveredDeckResultsView: View {
                     }
                     .padding(.vertical, 4)
                 }
+
+                Section { RoofEndDrawing(input: input).padding(.vertical, 4) }
 
                 Section("Guidance") {
                     Text("• Rafter size and ledger connection must be verified against your local snow load and wind exposure tables.")

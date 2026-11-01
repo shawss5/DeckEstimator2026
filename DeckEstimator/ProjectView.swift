@@ -95,14 +95,7 @@ struct ProjectView: View {
                 Section("Deck — Size") {
                     HStack { Text("Length along house (ft)"); Spacer(); NumberField(value: $deckInput.lengthFt) }
                     HStack { Text("Width out from house (ft)");  Spacer(); NumberField(value: $deckInput.widthFt) }
-                    HStack {
-                        Text("Height (highest point)")
-                        Spacer()
-                        NumberField(value: heightFeetBinding($deckInput.deckHeightIn)).frame(width: 56)
-                        Text("ft").foregroundStyle(.secondary)
-                        NumberField(value: heightInchesBinding($deckInput.deckHeightIn)).frame(width: 56)
-                        Text("in").foregroundStyle(.secondary)
-                    }
+                    FeetInchesRow(label: "Height (highest point)", inches: $deckInput.deckHeightIn)
                     Text("Feet and inches from the top of the decking down to the ground, where the deck is highest (e.g. 15 ft 0 in). Sets post lengths, railing rules and the stairs' total rise.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -215,6 +208,12 @@ struct ProjectView: View {
                     HStack { Text("Length (along house)"); Spacer(); NumberField(value: $coveredDeckInput.lengthFt) }
                     HStack { Text("Projection (out from house)"); Spacer(); NumberField(value: $coveredDeckInput.projectionFt) }
                     HStack { Text("Pitch (rise per 12\")"); Spacer(); NumberField(value: $coveredDeckInput.pitchRisePer12) }
+                    FeetInchesRow(label: "Post height", inches: $coveredDeckInput.postHeightIn)
+                    if includeDeck {
+                        Text("Length and projection fill in from the deck size. Change them if the roof covers only part of the deck.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     if coveredDeckInput.lengthFt <= 0 || coveredDeckInput.projectionFt <= 0 {
                         Label("Length and projection must both be greater than 0", systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
@@ -260,6 +259,20 @@ struct ProjectView: View {
             }
         }
         .navigationTitle("Full Project")
+        // The roof covers the deck by default: its size follows the deck's size
+        // until the user changes the roof size themselves.
+        .onChange(of: includeCoveredDeck) { _, on in
+            if on && includeDeck {
+                coveredDeckInput.lengthFt = deckInput.lengthFt
+                coveredDeckInput.projectionFt = deckInput.widthFt
+            }
+        }
+        .onChange(of: deckInput.lengthFt) { oldL, newL in
+            if coveredDeckInput.lengthFt == oldL { coveredDeckInput.lengthFt = newL }
+        }
+        .onChange(of: deckInput.widthFt) { oldW, newW in
+            if coveredDeckInput.projectionFt == oldW { coveredDeckInput.projectionFt = newW }
+        }
         .onChange(of: deckInput.deckHeightIn) { oldH, newH in
             if newH > DeckHeightRules.guardRequiredAboveIn && oldH <= DeckHeightRules.guardRequiredAboveIn {
                 deckInput.includeRailing = true
@@ -277,7 +290,8 @@ struct ProjectView: View {
                 coveredDeckItems: payload.coveredDeckItems,
                 coveredDeckInput: payload.coveredDeckInputSnapshot,
                 projectDetails: projectDetails,
-                logoImage: logoImage
+                logoImage: logoImage,
+                boardsParallelToHouse: deckingDirection == .alongLength
             )
         }
         .onAppear {

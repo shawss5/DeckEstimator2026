@@ -111,20 +111,34 @@ struct CoveredDeckCalculator {
         let g = geometry(i)
 
         // ✅ Rafters
+        let rafterStock = Int(DeckPlanner.roundUpStockLength(g.rafterLenFt))
         out.append(MaterialItem(
-            name: "Rafters",
+            name: "Rafters × \(rafterStock) ft",
             qty: Double(g.rafterCount),
             unit: "pcs",
-            notes: "Approx length \(String(format: "%.1f", g.rafterLenFt)) ft"
+            notes: "Cut length ≈ \(DeckHeightRules.feetInches(g.rafterLenFt * 12)) each, incl. overhang • size per local span tables"
         ))
 
-        // ✅ Posts
+        // ✅ Posts — cut to the post height, plus what lumber to buy
+        let postIn = max(0, i.postHeightIn)
         out.append(MaterialItem(
-            name: "Posts",
+            name: "Roof posts 6×6",
             qty: Double(g.postCount),
             unit: "pcs",
-            notes: "Spacing approx \(i.postSpacingFt) ft"
+            notes: postIn > 0
+                ? "Cut to ~\(DeckHeightRules.feetInches(postIn)) • deck surface to underside of beam • spacing ~\(displayNumber(i.postSpacingFt)) ft"
+                : "Spacing ~\(displayNumber(i.postSpacingFt)) ft • enter a post height to size them"
         ))
+        if postIn > 0 {
+            let plan = DeckHeightRules.postLumberPlan(postIn: postIn, posts: g.postCount)
+            if plan.boards > 0 {
+                out.append(MaterialItem(
+                    name: "Roof post lumber 6×6 × \(plan.stockFt) ft",
+                    qty: Double(plan.boards),
+                    unit: plan.boards == 1 ? "board" : "boards",
+                    notes: plan.perBoard == 1 ? "1 post per board" : "Cut up to \(plan.perBoard) posts from each board"))
+            }
+        }
 
         // ✅ Beams
         out.append(MaterialItem(

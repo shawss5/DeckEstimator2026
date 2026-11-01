@@ -224,6 +224,8 @@ struct CoveredDeckInput: Codable, Hashable {
     var pitchRisePer12: Double = 3
     var rafterSpacingIn: Double = 16
     var postSpacingFt: Double = 8
+    /// Roof post height: deck surface up to the underside of the beam (inches).
+    var postHeightIn: Double = 96
     var freestanding: Bool = false
     var roofingIsShingles: Bool = true
     var sheathingWastePct: Double = 10
@@ -245,4 +247,9 @@ func displayNumber(_ v: Double) -> String {
     while s.hasSuffix("0") { s.removeLast() }
     if s.hasSuffix(".") { s.removeLast() }
     return s
+}
+
+/// Unit label that reads naturally: "1 pc", "3 pcs".
+func displayUnit(_ item: MaterialItem) -> String {
+    (item.unit == "pcs" && item.qty == 1) ? "pc" : item.unit
 }

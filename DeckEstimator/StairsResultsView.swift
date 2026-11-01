@@ -64,7 +64,7 @@ struct StairsResultsView: View {
                 HStack {
                     Text(it.name)
                     Spacer()
-                    Text("\(fmt(it.qty)) \(it.unit)")
+                    Text("\(fmt(it.qty)) \(displayUnit(it))")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -99,7 +99,7 @@ struct StairsResultsView: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text(it.name).font(.subheadline).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 8)
-                            Text("\(fmt(it.qty)) \(it.unit)").font(.footnote).foregroundStyle(.secondary)
+                            Text("\(fmt(it.qty)) \(displayUnit(it))").font(.footnote).foregroundStyle(.secondary)
                         }
                         if let notes = it.notes, !notes.isEmpty {
                             Text(notes).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -114,8 +114,9 @@ struct StairsResultsView: View {
 
     /// Create a styled PDF from the grouped materials and return a file URL
     private func makeSummaryPDF() -> URL? {
-        let pageWidth: CGFloat = 612 // 8.5" at 72 dpi
-        let content = VStack(alignment: .leading, spacing: 10) {
+        // Lay the PDF out on 8½ × 11 pages (see PDFPaginator).
+        var blocks: [AnyView] = []
+        blocks.append(AnyView(
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -155,40 +156,14 @@ struct StairsResultsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
-            Divider()
-
-            pdfSection("Stair Structure", structureItems)
-            pdfSection("Decking", deckingItems)
-            pdfSection("Fasteners", fastenerItems)
-            pdfSection("Railing", railingItems)
-            pdfSection("Landing", landingItems)
-            pdfSection("Planters", planterItems)
-            pdfSection("Other", otherItems)
+        ))
+        blocks.append(AnyView(Divider()))
+        blocks.append(AnyView(StairsSideDrawing(input: input).padding(.vertical, 6)))
+        for (t, arr) in [("Stair Structure", structureItems), ("Decking", deckingItems), ("Fasteners", fastenerItems),
+                         ("Railing", railingItems), ("Landing", landingItems), ("Planters", planterItems), ("Other", otherItems)] {
+            blocks += PDFPaginator.sectionBlocks(t, arr)
         }
-        .padding(24)
-        .frame(width: pageWidth, alignment: .leading)
-
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 1
-
-        var pdfData: Data?
-        renderer.render { size, render in
-            let pageRect = CGRect(origin: .zero, size: size)
-            let format = UIGraphicsPDFRendererFormat()
-            let pdfRenderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
-            pdfData = pdfRenderer.pdfData { ctx in
-                ctx.beginPage()
-                let cg = ctx.cgContext
-                cg.saveGState()
-                cg.setFillColor(UIColor.white.cgColor)
-                cg.fill(CGRect(origin: .zero, size: pageRect.size))
-                cg.translateBy(x: 0, y: pageRect.height)
-                cg.scaleBy(x: 1, y: -1)
-                render(cg)
-                cg.restoreGState()
-            }
-        }
-        guard let data = pdfData else { return nil }
+        let data = PDFPaginator.pdfData(blocks: blocks)
         let filename = "StairsEstimate-\(UUID().uuidString.prefix(8)).pdf"
         let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename, conformingTo: .pdf)
         do { try data.write(to: tmpURL); return tmpURL } catch { return nil }
@@ -231,9 +206,9 @@ struct StairsResultsView: View {
         for it in items {
             let qtyStr = fmt(it.qty)
             if let notes = it.notes, !notes.isEmpty {
-                lines.append("- \(it.name): \(qtyStr) \(it.unit) (\(notes))")
+                lines.append("- \(it.name): \(qtyStr) \(displayUnit(it)) (\(notes))")
             } else {
-                lines.append("- \(it.name): \(qtyStr) \(it.unit)")
+                lines.append("- \(it.name): \(qtyStr) \(displayUnit(it))")
             }
         }
         return lines.joined(separator: "\n")
@@ -258,6 +233,8 @@ struct StairsResultsView: View {
                     }
                     .padding(.vertical, 4)
                 }
+
+                Section { StairsSideDrawing(input: input).padding(.vertical, 4) }
 
                 Section("Guidance") {
                     Text("• Keep riser heights consistent — code typically limits variance between the largest and smallest riser to 3/8\".")

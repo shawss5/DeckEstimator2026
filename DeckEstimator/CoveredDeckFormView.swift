@@ -48,6 +48,10 @@ struct CoveredDeckFormView: View {
                 HStack { Text("Pitch (rise per 12\")"); Spacer(); NumberField(value: $input.pitchRisePer12) }
                 HStack { Text("Rafter spacing OC (in)"); Spacer(); NumberField(value: $input.rafterSpacingIn) }
                 HStack { Text("Post spacing (ft)"); Spacer(); NumberField(value: $input.postSpacingFt) }
+                FeetInchesRow(label: "Post height", inches: $input.postHeightIn)
+                Text("Post height: from the deck surface up to the bottom of the beam (8 ft 0 in is typical).")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Roofing Material") {

@@ -283,7 +283,8 @@ struct DeckFormView: View {
                 jobsiteAddress: projectDetails.jobsiteAddress,
                 contactInfo: projectDetails.contactInfo,
                 projectNotes: projectDetails.notes,
-                logoImage: logoImage
+                logoImage: logoImage,
+                boardsParallelToHouse: deckingDirection == .alongLength
             )
         }
         .onAppear {

@@ -18,6 +18,7 @@ struct ResultsView: View {
     let contactInfo: String?
     let projectNotes: String?
     let logoImage: UIImage?
+    let boardsParallelToHouse: Bool
 
     init(items: [MaterialItem],
          input: DeckInput? = nil,
@@ -27,7 +28,8 @@ struct ResultsView: View {
          jobsiteAddress: String? = nil,
          contactInfo: String? = nil,
          projectNotes: String? = nil,
-         logoImage: UIImage? = nil) {
+         logoImage: UIImage? = nil,
+         boardsParallelToHouse: Bool = true) {
         self.items = items
         self.input = input
         self.species = species
@@ -37,6 +39,7 @@ struct ResultsView: View {
         self.contactInfo = contactInfo
         self.projectNotes = projectNotes
         self.logoImage = logoImage
+        self.boardsParallelToHouse = boardsParallelToHouse
     }
 
     private func fmt(_ v: Double) -> String { displayNumber(v) }
@@ -76,7 +79,7 @@ struct ResultsView: View {
                 HStack {
                     Text(it.name)
                     Spacer()
-                    Text("\(fmt(it.qty)) \(it.unit)")
+                    Text("\(fmt(it.qty)) \(displayUnit(it))")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -112,7 +115,7 @@ struct ResultsView: View {
                             HStack(alignment: .firstTextBaseline) {
                                 Text(it.name).font(.subheadline).fixedSize(horizontal: false, vertical: true)
                                 Spacer(minLength: 8)
-                                Text("\(fmt(it.qty)) \(it.unit)").font(.footnote).foregroundStyle(.secondary)
+                                Text("\(fmt(it.qty)) \(displayUnit(it))").font(.footnote).foregroundStyle(.secondary)
                             }
                             if let notes = it.notes, !notes.isEmpty {
                                 Text(notes).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -125,9 +128,9 @@ struct ResultsView: View {
             }
         }
 
-        let pageWidth: CGFloat = 612   // 8.5" at 72 dpi
-        let content = VStack(alignment: .leading, spacing: 10) {
-            // Header
+        // Lay the PDF out on 8½ × 11 pages (see PDFPaginator).
+        var blocks: [AnyView] = []
+        blocks.append(AnyView(
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -173,8 +176,12 @@ struct ResultsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
-            Divider()
-
+        ))
+        blocks.append(AnyView(Divider()))
+        if let di = input {
+            blocks.append(AnyView(DeckPlanDrawing(input: di, boardsParallelToHouse: boardsParallelToHouse).padding(.vertical, 6)))
+        }
+        blocks.append(AnyView(VStack(alignment: .leading, spacing: 10) {
             // Height checks
             if let di = input {
                 VStack(alignment: .leading, spacing: 4) {
@@ -198,38 +205,12 @@ struct ResultsView: View {
             }
             .padding(.bottom, 6)
 
-            // Sections
-            section("Decking", deckingItems)
-            section("Framing", framingItems)
-            section("Railing", railingItems)
-            section("Other", otherItems)
-        }
-        .padding(24)
-        .frame(width: pageWidth, alignment: .leading)
-
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 1
-
-        var pdfData: Data?
-        renderer.render { size, render in
-            let pageRect = CGRect(origin: .zero, size: size)
-            let format = UIGraphicsPDFRendererFormat()
-            let pdfRenderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
-            pdfData = pdfRenderer.pdfData { ctx in
-                ctx.beginPage()
-                let cg = ctx.cgContext
-                cg.saveGState()
-                // White page background to ensure a proper preview/printable page
-                cg.setFillColor(UIColor.white.cgColor)
-                cg.fill(CGRect(origin: .zero, size: pageRect.size))
-                // Flip the coordinate system for SwiftUI -> PDF so it isn't upside down
-                cg.translateBy(x: 0, y: pageRect.height)
-                cg.scaleBy(x: 1, y: -1)
-                render(cg)
-                cg.restoreGState()
-            }
-        }
-        guard let data = pdfData else { return nil }
+        }))
+        blocks += PDFPaginator.sectionBlocks("Decking", deckingItems)
+        blocks += PDFPaginator.sectionBlocks("Framing", framingItems)
+        blocks += PDFPaginator.sectionBlocks("Railing", railingItems)
+        blocks += PDFPaginator.sectionBlocks("Other", otherItems)
+        let data = PDFPaginator.pdfData(blocks: blocks)
         let filename = "DeckEstimate-\(UUID().uuidString.prefix(8)).pdf"
         let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename, conformingTo: .pdf)
         do { try data.write(to: tmpURL); return tmpURL } catch { return nil }
@@ -290,6 +271,11 @@ struct ResultsView: View {
                         }
                         .padding(.vertical, 4)
                     }
+                }
+
+                // Drawing
+                if let di = input {
+                    Section { DeckPlanDrawing(input: di, boardsParallelToHouse: boardsParallelToHouse).padding(.vertical, 4) }
                 }
 
                 // Height-driven code checks
@@ -456,7 +442,7 @@ struct ResultsView: View {
         lines.append("Materials:")
         for it in items {
             let qtyStr = displayNumber(it.qty)
-            let unit = it.unit
+            let unit = displayUnit(it)
             if let notes = it.notes, !notes.isEmpty {
                 lines.append("- \(it.name): \(qtyStr) \(unit) (\(notes))")
             } else {

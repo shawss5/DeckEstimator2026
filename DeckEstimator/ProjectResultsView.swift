@@ -19,6 +19,7 @@ struct ProjectResultsView: View {
 
     let projectDetails: ProjectDetails
     let logoImage: UIImage?
+    var boardsParallelToHouse: Bool = true
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var purchases: PurchaseManager
@@ -89,7 +90,7 @@ struct ProjectResultsView: View {
                 HStack {
                     Text(it.name)
                     Spacer()
-                    Text("\(fmt(it.qty)) \(it.unit)")
+                    Text("\(fmt(it.qty)) \(displayUnit(it))")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -114,7 +115,7 @@ struct ProjectResultsView: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text(it.name).font(.subheadline).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 8)
-                            Text("\(fmt(it.qty)) \(it.unit)").font(.footnote).foregroundStyle(.secondary)
+                            Text("\(fmt(it.qty)) \(displayUnit(it))").font(.footnote).foregroundStyle(.secondary)
                         }
                         if let notes = it.notes, !notes.isEmpty {
                             Text(notes).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -141,8 +142,9 @@ struct ProjectResultsView: View {
     }
 
     private func makeSummaryPDF() -> URL? {
-        let pageWidth: CGFloat = 612 // 8.5" at 72 dpi
-        let content = VStack(alignment: .leading, spacing: 10) {
+        // Lay the PDF out on 8½ × 11 pages (see PDFPaginator).
+        var blocks: [AnyView] = []
+        blocks.append(AnyView(
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -181,36 +183,33 @@ struct ProjectResultsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
-            Divider()
-
-            if let di = deckInput { pdfComponent("Rectangular Deck", deckHeaderLine(di), deckGroups) }
-            if let si = stairsInput { pdfComponent("Stairs", stairsHeaderLine(si), stairsGroups) }
-            if let ci = coveredDeckInput { pdfComponent("Covered Deck", coveredDeckHeaderLine(ci), coveredDeckGroups) }
+        ))
+        blocks.append(AnyView(Divider()))
+        if let di = deckInput {
+            blocks.append(AnyView(DeckPlanDrawing(input: di, boardsParallelToHouse: boardsParallelToHouse).padding(.top, 10)))
+            blocks.append(AnyView(VStack(alignment: .leading, spacing: 4) {
+                Text("Rectangular Deck").font(.title3).bold()
+                Text(deckHeaderLine(di)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }))
+            for group in deckGroups { blocks += PDFPaginator.sectionBlocks(group.title, group.items, topPadding: 8) }
         }
-        .padding(24)
-        .frame(width: pageWidth, alignment: .leading)
-
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 1
-
-        var pdfData: Data?
-        renderer.render { size, render in
-            let pageRect = CGRect(origin: .zero, size: size)
-            let format = UIGraphicsPDFRendererFormat()
-            let pdfRenderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
-            pdfData = pdfRenderer.pdfData { ctx in
-                ctx.beginPage()
-                let cg = ctx.cgContext
-                cg.saveGState()
-                cg.setFillColor(UIColor.white.cgColor)
-                cg.fill(CGRect(origin: .zero, size: pageRect.size))
-                cg.translateBy(x: 0, y: pageRect.height)
-                cg.scaleBy(x: 1, y: -1)
-                render(cg)
-                cg.restoreGState()
-            }
+        if let si = stairsInput {
+            blocks.append(AnyView(StairsSideDrawing(input: si).padding(.top, 10)))
+            blocks.append(AnyView(VStack(alignment: .leading, spacing: 4) {
+                Text("Stairs").font(.title3).bold()
+                Text(stairsHeaderLine(si)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }))
+            for group in stairsGroups { blocks += PDFPaginator.sectionBlocks(group.title, group.items, topPadding: 8) }
         }
-        guard let data = pdfData else { return nil }
+        if let ci = coveredDeckInput {
+            blocks.append(AnyView(RoofEndDrawing(input: ci).padding(.top, 10)))
+            blocks.append(AnyView(VStack(alignment: .leading, spacing: 4) {
+                Text("Covered Deck").font(.title3).bold()
+                Text(coveredDeckHeaderLine(ci)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }))
+            for group in coveredDeckGroups { blocks += PDFPaginator.sectionBlocks(group.title, group.items, topPadding: 8) }
+        }
+        let data = PDFPaginator.pdfData(blocks: blocks)
         let filename = "ProjectEstimate-\(UUID().uuidString.prefix(8)).pdf"
         let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename, conformingTo: .pdf)
         do { try data.write(to: tmpURL); return tmpURL } catch { return nil }
@@ -247,9 +246,9 @@ struct ProjectResultsView: View {
         for it in items {
             let qtyStr = fmt(it.qty)
             if let notes = it.notes, !notes.isEmpty {
-                lines.append("- \(it.name): \(qtyStr) \(it.unit) (\(notes))")
+                lines.append("- \(it.name): \(qtyStr) \(displayUnit(it)) (\(notes))")
             } else {
-                lines.append("- \(it.name): \(qtyStr) \(it.unit)")
+                lines.append("- \(it.name): \(qtyStr) \(displayUnit(it))")
             }
         }
     }
@@ -297,6 +296,7 @@ struct ProjectResultsView: View {
                     } header: {
                         Label("Rectangular Deck", systemImage: "square.grid.2x2.fill").foregroundStyle(.brown)
                     }
+                    Section { DeckPlanDrawing(input: di, boardsParallelToHouse: boardsParallelToHouse).padding(.vertical, 4) }
                     ForEach(deckGroups, id: \.title) { group in
                         Section { materialRows(group.items) } header: { CategoryHeader(title: group.title, prefix: "Deck") }
                     }
@@ -308,6 +308,7 @@ struct ProjectResultsView: View {
                     } header: {
                         Label("Stairs", systemImage: "stairs").foregroundStyle(.orange)
                     }
+                    Section { StairsSideDrawing(input: si).padding(.vertical, 4) }
                     ForEach(stairsGroups, id: \.title) { group in
                         Section { materialRows(group.items) } header: { CategoryHeader(title: group.title, prefix: "Stairs") }
                     }
@@ -319,6 +320,7 @@ struct ProjectResultsView: View {
                     } header: {
                         Label("Covered Deck", systemImage: "house.lodge.fill").foregroundStyle(.indigo)
                     }
+                    Section { RoofEndDrawing(input: ci).padding(.vertical, 4) }
                     ForEach(coveredDeckGroups, id: \.title) { group in
                         Section { materialRows(group.items) } header: { CategoryHeader(title: group.title, prefix: "Covered Deck") }
                     }

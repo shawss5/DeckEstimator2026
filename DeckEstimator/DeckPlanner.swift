@@ -135,6 +135,20 @@ enum DeckPlanner {
         return "Engineer review"
     }
 
+    /// Boards longer than 20 ft aren't stocked: cover a long run with the
+    /// fewest feet of standard lengths (ties → fewer pieces), spliced over a joist.
+    static func longRunPlan(_ runFt: Double) -> (stockFt: Int, pieces: Int) {
+        if runFt <= 20 { return (Int(roundUpStockLength(runFt)), 1) }
+        var best = (stockFt: 20, pieces: Int(ceil(runFt / 20)))
+        var bestTotal = best.stockFt * best.pieces
+        for s in [12, 14, 16, 18, 20] {
+            let n = Int(ceil(runFt / Double(s)))
+            let total = n * s
+            if total < bestTotal || (total == bestTotal && n < best.pieces) { best = (s, n); bestTotal = total }
+        }
+        return best
+    }
+
     static func roundUpStockLength(_ spanFt: Double) -> Double {
         let stock: [Double] = [8, 10, 12, 14, 16, 18, 20]
         for s in stock { if spanFt <= s { return s } }
@@ -230,18 +244,20 @@ enum DeckPlanner {
         setQty("Joist hanger nails/screws", ceil(hangers * 8.0))
         // Rim/band: end joists run with the joists; the outer rim (and ledger) run across them.
         items.removeAll { $0.name == "Rim Joists" }
-        let runStockFt = Int(roundUpStockLength(runDimensionFt))
+        let runPlan = longRunPlan(runDimensionFt)
+        let runStockFt = runPlan.stockFt
+        let spliceNote = runPlan.pieces > 1 ? " • \(runPlan.pieces) pieces spliced over joists to cover \(displayNumber(runDimensionFt)) ft" : ""
         items.append(MaterialItem(name: "Rim joists (ends) \(joistSizeStr) × \(Int(joistStockFt)) ft", qty: 2, unit: "pcs",
                                   notes: "One at each end, parallel to the joists"))
         items.append(MaterialItem(name: "Rim board (outer edge) \(joistSizeStr) × \(runStockFt) ft",
-                                  qty: i.ledgerAttached ? 1 : 2, unit: "pcs",
-                                  notes: "Caps the joist ends over the beam\(runDimensionFt > 20 ? " • splice over a joist" : "")"))
+                                  qty: Double((i.ledgerAttached ? 1 : 2) * runPlan.pieces), unit: "pcs",
+                                  notes: "Caps the joist ends over the beam\(spliceNote)"))
         if i.ledgerAttached {
             let perpendicular = deckingDirection != .alongLength
-            items.append(MaterialItem(name: "Ledger board \(joistSizeStr) × \(runStockFt) ft", qty: 1, unit: "pcs",
+            items.append(MaterialItem(name: "Ledger board \(joistSizeStr) × \(runStockFt) ft", qty: Double(runPlan.pieces), unit: "pcs",
                                       notes: perpendicular
                                         ? "⚠︎ Boards perpendicular to the house put the joists parallel to it, so they can't hang from a ledger — beams must run out from the house. Have this framing checked."
-                                        : "Bolted to the house rim joist; joists hang from it"))
+                                        : "Bolted to the house rim joist; joists hang from it\(spliceNote)"))
             setQty("Ledger structural fasteners", ceil(runDimensionFt * 12.0 / 16.0))
         }
 
