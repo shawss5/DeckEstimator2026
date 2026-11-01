@@ -124,12 +124,19 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Help") {
+            Section {
                 Button {
                     showIntro = true
                 } label: {
                     Label("How it works", systemImage: "questionmark.circle")
                 }
+                Link(destination: URL(string: "https://claude.ai/artifact/23zgKm3Kmftfv6krozJ7G9")!) {
+                    Label("Terms of Use", systemImage: "doc.text")
+                }
+            } header: {
+                Text("Help")
+            } footer: {
+                Text("Deck Estimator gives material estimates for planning and bidding. It is not an engineered design. Always verify sizes, spans, footings and railing rules with your local building department.")
             }
         }
         .navigationTitle("My Company")

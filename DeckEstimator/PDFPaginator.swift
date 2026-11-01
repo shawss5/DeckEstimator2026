@@ -26,9 +26,10 @@ enum PDFPaginator {
                 pageNumber += 1
                 UIColor.white.setFill()
                 UIRectFill(page)
-                let footer = "Page \(pageNumber)" as NSString
+                // Disclaimer on every page: the PDF goes to customers who never saw the in-app warnings.
+                let footer = "Material estimate only — not an engineered design. Verify sizes, spans and code requirements with your local building department.   •   Page \(pageNumber)" as NSString
                 let attrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 8),
+                    .font: UIFont.systemFont(ofSize: 7),
                     .foregroundColor: UIColor.gray
                 ]
                 let fs = footer.size(withAttributes: attrs)
