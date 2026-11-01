@@ -12,8 +12,8 @@ enum LumberSpecies: String, CaseIterable, Identifiable {
 
 // MARK: - Decking orientation (controls joist direction)
 enum DeckingDirection: String, CaseIterable, Identifiable {
-    case alongLength = "Boards run along deck LENGTH"
-    case alongWidth  = "Boards run along deck WIDTH"
+    case alongLength = "Boards parallel to the house (standard)"
+    case alongWidth  = "Boards perpendicular to the house"
     var id: String { rawValue }
 }
 
@@ -160,8 +160,8 @@ struct DeckFormView: View {
 
             // Deck size
             Section {
-                HStack { Text("Length (ft)"); Spacer(); NumericField(value: $input.lengthFt) }
-                HStack { Text("Width (ft)");  Spacer(); NumericField(value: $input.widthFt) }
+                HStack { Text("Length along house (ft)"); Spacer(); NumericField(value: $input.lengthFt) }
+                HStack { Text("Width out from house (ft)");  Spacer(); NumericField(value: $input.widthFt) }
                 HStack {
                     Text("Height (highest point)")
                     Spacer()

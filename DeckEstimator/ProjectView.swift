@@ -93,8 +93,8 @@ struct ProjectView: View {
                 }
 
                 Section("Deck — Size") {
-                    HStack { Text("Length (ft)"); Spacer(); NumberField(value: $deckInput.lengthFt) }
-                    HStack { Text("Width (ft)");  Spacer(); NumberField(value: $deckInput.widthFt) }
+                    HStack { Text("Length along house (ft)"); Spacer(); NumberField(value: $deckInput.lengthFt) }
+                    HStack { Text("Width out from house (ft)");  Spacer(); NumberField(value: $deckInput.widthFt) }
                     HStack {
                         Text("Height (highest point)")
                         Spacer()

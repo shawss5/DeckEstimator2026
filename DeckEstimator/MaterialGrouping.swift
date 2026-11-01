@@ -36,7 +36,7 @@ enum MaterialGrouping {
 
     static let deckCategories: [(title: String, needles: [String])] = [
         ("Decking", ["Deck boards", "Decking (linear", "Deck screws", "Hidden fastener", "Starter/edge clips"]),
-        ("Framing", ["Joists", "Joist hanger", "Blocking", "Beam", "Posts ", "Post lumber", "Concrete footings", "Post bases", "Post-to-beam", "Ledger structural"]),
+        ("Framing", ["Joists", "Joist hanger", "Blocking", "Rim board", "Ledger board", "Beam", "Posts ", "Post lumber", "Concrete footings", "Post bases", "Post-to-beam", "Ledger structural"]),
         ("Railing", ["Railing"])
     ]
 

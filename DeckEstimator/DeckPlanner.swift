@@ -183,8 +183,12 @@ enum DeckPlanner {
         let spacingIn = max(1.0, i.joistSpacingIn)
         let runDimensionFt: Double   = (deckingDirection == .alongLength) ? L_ft : W_ft
         let crossDimensionFt: Double = (deckingDirection == .alongLength) ? W_ft : L_ft
-        let joistSpanFt = runDimensionFt
-        let joistCount = Int(floor((crossDimensionFt * 12.0) / spacingIn)) + 1
+        // Framing: boards sit ACROSS the joists, and the beam (and ledger) run
+        // ACROSS the joists to hold up their ends. So joists span the dimension
+        // the boards don't run along, and are spaced along the board direction.
+        // (Before 1.2 the joists ran the same way as the boards and the beam.)
+        let joistSpanFt = crossDimensionFt
+        let joistCount = Int(floor((runDimensionFt * 12.0) / spacingIn)) + 1
 
         // Boards across for fastener math
         let moduleIn = max(0.01, i.boardWidthIn + i.boardGapIn)
@@ -201,10 +205,51 @@ enum DeckPlanner {
             notes: "Clear span \(String(format: "%.0f", joistSpanFt)) ft each • Buy \(Int(joistStockFt)) ft and cut to fit • No mid-span splices"
         ))
 
+        // 3b) Re-derive the lines the base engine sized with the old joist direction.
+        let waste = 1 + i.wastePct / 100.0
+        func setQty(_ prefix: String, _ qty: Double, notes: String? = nil) {
+            if let idx = items.firstIndex(where: { $0.name.hasPrefix(prefix) }) {
+                items[idx].qty = qty
+                if let notes { items[idx].notes = notes }
+            }
+        }
+        // Decking: boards run along the board direction, stacked across the other.
+        setQty("Decking (linear feet)", ceil(boardsAcross * runDimensionFt * waste))
+        setQty("Deck screws", ceil(boardsAcross * Double(joistCount) * 2.0 * waste),
+               notes: "2 per board at each joist • includes waste")
+        // Blocking: a row every ~8 ft of joist span, between every pair of joists.
+        let blockingRows = floor(joistSpanFt / 8.0)
+        items.removeAll { $0.name == "Blocking" }
+        if blockingRows > 0 {
+            items.append(MaterialItem(name: "Blocking", qty: blockingRows * Double(max(joistCount - 1, 0)), unit: "pcs",
+                                      notes: "\(Int(blockingRows)) row(s) across the joists, cut from joist stock"))
+        }
+        // Hangers at the ledger (or both ends if freestanding).
+        let hangers = Double(joistCount * (i.ledgerAttached ? 1 : 2))
+        setQty("Joist hangers", hangers)
+        setQty("Joist hanger nails/screws", ceil(hangers * 8.0))
+        // Rim/band: end joists run with the joists; the outer rim (and ledger) run across them.
+        items.removeAll { $0.name == "Rim Joists" }
+        let runStockFt = Int(roundUpStockLength(runDimensionFt))
+        items.append(MaterialItem(name: "Rim joists (ends) \(joistSizeStr) × \(Int(joistStockFt)) ft", qty: 2, unit: "pcs",
+                                  notes: "One at each end, parallel to the joists"))
+        items.append(MaterialItem(name: "Rim board (outer edge) \(joistSizeStr) × \(runStockFt) ft",
+                                  qty: i.ledgerAttached ? 1 : 2, unit: "pcs",
+                                  notes: "Caps the joist ends over the beam\(runDimensionFt > 20 ? " • splice over a joist" : "")"))
+        if i.ledgerAttached {
+            let perpendicular = deckingDirection != .alongLength
+            items.append(MaterialItem(name: "Ledger board \(joistSizeStr) × \(runStockFt) ft", qty: 1, unit: "pcs",
+                                      notes: perpendicular
+                                        ? "⚠︎ Boards perpendicular to the house put the joists parallel to it, so they can't hang from a ledger — beams must run out from the house. Have this framing checked."
+                                        : "Bolted to the house rim joist; joists hang from it"))
+            setQty("Ledger structural fasteners", ceil(runDimensionFt * 12.0 / 16.0))
+        }
+
         // 4) Beams — convert to purchase-ready built-up segments per post bay
         let beamLines = i.ledgerAttached ? 1 : 2
-        let spanCountPerLine = max(1, Int(ceil(L_ft / max(1.0, i.postSpacingFt))))
-        let approxSpanLen = L_ft / Double(spanCountPerLine)
+        // The beam runs across the joists, i.e. along the board direction.
+        let spanCountPerLine = max(1, Int(ceil(runDimensionFt / max(1.0, i.postSpacingFt))))
+        let approxSpanLen = runDimensionFt / Double(spanCountPerLine)
         let segStockFt = roundUpStockLength(approxSpanLen)
         let beamSizeStr = recommendBeamSize(postSpacingFt: i.postSpacingFt, beamLines: beamLines, species: species)
         // Parse plies from string like "(2) 2×10" or "(3) 2×12"

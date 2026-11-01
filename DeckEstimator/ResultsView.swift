@@ -94,7 +94,7 @@ struct ResultsView: View {
     private func makeSummaryPDF() -> URL? {
         // Group items the same way the UI does
         let deckingNeedles = ["Deck boards", "Decking (linear", "Deck screws", "Hidden fastener", "Starter/edge clips"]
-        let framingNeedles = ["Joists", "Joist hanger", "Blocking", "Beam", "Posts ", "Post lumber", "Concrete footings", "Post bases", "Post-to-beam", "Ledger structural"]
+        let framingNeedles = ["Joists", "Joist hanger", "Blocking", "Rim board", "Ledger board", "Beam", "Posts ", "Post lumber", "Concrete footings", "Post bases", "Post-to-beam", "Ledger structural"]
         let railingNeedles = ["Railing"]
         let allNeedles = deckingNeedles + framingNeedles + railingNeedles
 
@@ -313,9 +313,10 @@ struct ResultsView: View {
                 // Suggested sizes (heuristic only — verify locally)
                 Section("Suggested sizes (verify with local code)") {
                     if let di = input {
-                        // Note: actual joist span is determined by the orientation at calculation time.
-                        let joistSpanFt = max(0.1, di.lengthFt)
-                        let joistSize = recommendJoistSize(spanFt: joistSpanFt, species: species)
+                        // Read the joist size the planner actually chose (it knows the framing direction).
+                        let joistSize = items.first(where: { $0.name.hasPrefix("Joists ") })
+                            .map { String($0.name.dropFirst("Joists ".count)) }
+                            ?? recommendJoistSize(spanFt: max(0.1, di.widthFt), species: species)
                         let beamSize = recommendBeamSize(postSpacingFt: di.postSpacingFt, beamLines: di.ledgerAttached ? 1 : 2, species: species)
                         let postSize = "6×6 (nominal)"
                         VStack(alignment: .leading, spacing: 4) {
@@ -336,7 +337,7 @@ struct ResultsView: View {
 
                 // Categorized materials
                 let deckingNeedles = ["Deck boards", "Decking (linear", "Deck screws", "Hidden fastener", "Starter/edge clips"]
-                let framingNeedles = ["Joists", "Joist hanger", "Blocking", "Beam", "Posts ", "Post lumber", "Concrete footings", "Post bases", "Post-to-beam", "Ledger structural"]
+                let framingNeedles = ["Joists", "Joist hanger", "Blocking", "Rim board", "Ledger board", "Beam", "Posts ", "Post lumber", "Concrete footings", "Post bases", "Post-to-beam", "Ledger structural"]
                 let railingNeedles = ["Railing"]
                 let allNeedles = deckingNeedles + framingNeedles + railingNeedles
 
