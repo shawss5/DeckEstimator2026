@@ -6,6 +6,7 @@ import StoreKit
 struct PaywallView: View {
     @EnvironmentObject private var purchases: PurchaseManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showRedeemCode = false
 
     var body: some View {
         NavigationStack {
@@ -78,6 +79,20 @@ struct PaywallView: View {
                     }
                     .disabled(purchases.isLoading)
 
+                    // Offer codes (free Pro codes handed out for promotions).
+                    // A redeemed code shows up in Transaction.updates /
+                    // currentEntitlements, which PurchaseManager already watches.
+                    Button {
+                        showRedeemCode = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Redeem a code")
+                            Spacer()
+                        }
+                    }
+                    .disabled(purchases.isLoading)
+
                     Text("One-time purchase, billed through your Apple ID. Rectangular Deck stays free forever.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -90,6 +105,9 @@ struct PaywallView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
+            }
+            .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
+                Task { await purchases.refreshEntitlements() }
             }
             .onChange(of: purchases.isPro) { _, unlocked in
                 if unlocked { dismiss() }
