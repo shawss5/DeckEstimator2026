@@ -130,7 +130,7 @@ struct SettingsView: View {
                 } label: {
                     Label("How it works", systemImage: "questionmark.circle")
                 }
-                Link(destination: URL(string: "https://claude.ai/artifact/23zgKm3Kmftfv6krozJ7G9")!) {
+                Link(destination: URL(string: "https://shawcreativeworks.com/terms/deck-estimator.html")!) {
                     Label("Terms of Use", systemImage: "doc.text")
                 }
             } header: {
